@@ -1,0 +1,53 @@
+============================================================
+  DAO FIXES — Reentrancy Prevention Verification
+============================================================
+
+------------------------------------------------------------
+  FIX 1: Checks-Effects-Interactions (CEI)
+------------------------------------------------------------
+  Deployed. Victim deposited 10 ETH.
+  Attack tx reverted: true
+  DAO balance after attack attempt: 10.0000 ETH
+  PASS: CEI: attack transaction reverted
+  PASS: CEI: victim's 10 ETH is safe
+
+  Why it works:
+    balances[msg.sender] = 0  ← zeroed BEFORE the external call
+    Re-entry hits require(amount > 0) → reverts entire tx
+
+------------------------------------------------------------
+  FIX 2: Reentrancy Guard (mutex)
+------------------------------------------------------------
+  Deployed. Victim deposited 10 ETH.
+  Attack tx reverted: true
+  DAO balance after attack attempt: 10.0000 ETH
+  PASS: Guard: attack transaction reverted
+  PASS: Guard: victim's 10 ETH is safe
+
+  Why it works:
+    _locked = true before external call
+    Re-entry hits require(!_locked) → reverts entire tx
+
+------------------------------------------------------------
+  FIX 3: Pull-over-Push payment
+------------------------------------------------------------
+  Deployed. Victim deposited 10 ETH.
+  Attack tx reverted: false (no revert needed — no ETH is pushed)
+  DAO balance: 11.0000 ETH
+  Attacker contract balance: 0.0000 ETH
+  PASS: Pull: victim's 10 ETH still in DAO
+  PASS: Pull: no ETH pushed to attacker contract
+
+  Why it works:
+    withdraw() records pendingPayments[msg.sender] += amount
+    No ETH is sent → attacker.receive() is never triggered → no reentrancy
+
+  Legitimate user claim flow:
+  Pending after withdraw(): 2.0000 ETH
+  PASS: Pull: user has 2 ETH pending
+  PASS: Pull: user successfully claimed via claimPayment()
+  Pending after claim: 0.0000 ETH
+
+============================================================
+  ALL DAO FIX VERIFICATIONS PASSED
+============================================================

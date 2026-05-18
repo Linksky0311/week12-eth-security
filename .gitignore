@@ -1,0 +1,6 @@
+node_modules/
+artifacts/
+cache/
+logs/capture_*.png
+logs/screen.png
+.claude/

@@ -1,0 +1,66 @@
+============================================================
+  PARITY HACK #1 — Unauthorized Initialization via delegatecall
+============================================================
+
+[1] Deploying shared WalletLibraryVulnerable...
+  Library: 0x5FbDB2315678afecb367f032d93F642f64180aa3
+
+[2] Deploying 3 proxy WalletVulnerable contracts...
+  Wallet1: 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512
+  Wallet2: 0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0
+  Wallet3: 0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9
+
+[3] Funding each wallet with 5 ETH...
+  Wallet1: 5.0000 ETH
+  Wallet2: 5.0000 ETH
+  Wallet3: 5.0000 ETH
+
+[4] Wallet1: legitimate owner (owner1) initializes via fallback → initWallet...
+  Wallet1 owner: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+  PASS: Wallet1 owner = owner1
+
+  Wallet1: owner withdraws 1 ETH via execute...
+  Wallet1 balance after 1 ETH withdraw: 4.0000 ETH
+
+[5] Wallet2 and Wallet3 are uninitialized (owner = address(0))...
+  Wallet2 owner: 0x0000000000000000000000000000000000000000 ← zero address
+  Wallet3 owner: 0x0000000000000000000000000000000000000000 ← zero address
+
+[6] ATTACK: attacker calls initWallet on Wallet2 and Wallet3 via fallback...
+  (fallback → delegatecall → library.initWallet runs in proxy storage context)
+  Wallet2 owner: 0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65
+  Wallet3 owner: 0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65
+  PASS: Attacker is now owner of Wallet2
+  PASS: Attacker is now owner of Wallet3
+
+[7] Attacker drains Wallet2 and Wallet3...
+  Wallet2 balance: 0.0000 ETH
+  Wallet3 balance: 0.0000 ETH
+  PASS: Wallet2 drained to 0 ETH
+  PASS: Wallet3 drained to 0 ETH
+
+============================================================
+  VULNERABILITY EXPLANATION
+============================================================
+  delegatecall mechanics:
+    library code runs in PROXY's storage context.
+    library slot 0 = 'owner' → maps to proxy slot 0 = 'owner'.
+    initWallet(_owner) writes storage[0] = _owner.
+    Via delegatecall: proxy.owner is overwritten.
+
+  Attack precondition: proxy.owner == address(0) (never initialized).
+  Attacker calls initWallet(attacker) via fallback → hijacks ownership.
+
+============================================================
+  WALLETFIXED — Protection Verification
+============================================================
+  WalletFixed deployed. Owner: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+  Re-init attempt reverted: true
+  PASS: WalletFixed: re-initialization rejected (already initialized)
+  Non-owner execute reverted: true
+  PASS: WalletFixed: non-owner execute rejected (owner only)
+  WalletFixed balance: 5.0000 ETH (funds safe)
+
+============================================================
+  PARITY #1 SIMULATION COMPLETE
+============================================================

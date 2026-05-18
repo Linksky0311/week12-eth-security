@@ -1,0 +1,20 @@
+{
+  "name": "week12-eth-security",
+  "version": "1.0.0",
+  "description": "Historic Ethereum Smart Contract Hacks - Local Hardhat Simulation",
+  "type": "module",
+  "scripts": {
+    "compile": "hardhat compile",
+    "simulate:dao": "hardhat run scripts/01_dao_attack.js --network hardhat",
+    "simulate:dao-fixes": "hardhat run scripts/02_dao_fixes.js --network hardhat",
+    "simulate:parity1": "hardhat run scripts/03_parity1_attack.js --network hardhat",
+    "simulate:parity2": "hardhat run scripts/04_parity2_freeze.js --network hardhat",
+    "simulate:all": "npm run simulate:dao && npm run simulate:dao-fixes && npm run simulate:parity1 && npm run simulate:parity2",
+    "test": "npm run compile && npm run simulate:all"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-ethers": "^3.0.0",
+    "ethers": "^6.0.0",
+    "hardhat": "^2.22.0"
+  }
+}

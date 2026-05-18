@@ -1,0 +1,45 @@
+============================================================
+  DAO HACK — Reentrancy Attack Simulation
+============================================================
+
+[1] Deploying vulnerable SimpleDAO...
+  SimpleDAO deployed at 0x5FbDB2315678afecb367f032d93F642f64180aa3
+
+[2] Victim deposits 10 ETH...
+  DAO balance: 10.0000 ETH
+
+[3] Deploying DAOAttacker (attacker's contract)...
+  DAOAttacker deployed at 0x663F3ad617193148711d28f5334eE4Ed07016602
+
+[4] Attacker deposits 1 ETH and launches reentrancy attack...
+  Attack flow:
+    attack() → dao.deposit(1 ETH) → dao.withdraw()
+    → DAO sends ETH → receive() re-enters dao.withdraw()
+    → repeats until DAO balance == 0
+
+============================================================
+  ATTACK RESULTS
+============================================================
+  DAO balance:               0.0000 ETH
+  Attacker contract balance: 11.0000 ETH
+  Reentrant calls:           10
+
+  PASS: DAO balance = 0 ETH after attack
+  PASS: Attacker holds 11 ETH (10 victim + 1 seed)
+
+============================================================
+  VULNERABILITY EXPLANATION
+============================================================
+  Root cause: 'external interaction before state update'
+    withdraw() sends ETH (external call) BEFORE zeroing balances[msg.sender].
+    This violates the Checks-Effects-Interactions (CEI) pattern.
+
+  Attack steps:
+    1. Attacker deposits 1 ETH  → DAO total: 11 ETH
+    2. Attacker calls withdraw() → DAO sends 1 ETH to attacker
+    3. attacker.receive() fires  → balance[attacker] still = 1 ETH (not yet 0!)
+    4. receive() calls withdraw() again → DAO sends another 1 ETH
+    5. Steps 3-4 repeat until DAO is empty
+    6. Stack unwinds: unchecked balance decrements execute (no revert)
+
+  Fix: zero balances[msg.sender] BEFORE the external call (CEI).
