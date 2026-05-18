@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<style>
+  body { background:#1e1e1e; margin:0; padding:20px; font-family:'Consolas','Courier New',monospace; font-size:13px; }
+  pre { color:#d4d4d4; white-space:pre-wrap; line-height:1.6; margin:0; }
+  .title { color:#4ec9b0; font-size:15px; font-weight:bold; margin-bottom:8px; }
+  .pass { color:#4ec9b0; }
+  .hdr  { color:#569cd6; }
+  .cmd  { color:#ce9178; }
+  .info { color:#9cdcfe; }
+</style></head><body>
+<div class="title">npm test — 01: DAO Hack · Reentrancy Attack</div>
+<pre>
+<span class="cmd">> week12-eth-security@1.0.0 simulate:dao</span>
+<span class="cmd">> hardhat run scripts/01_dao_attack.js --network hardhat</span>
+
+<span class="hdr">============================================================</span>
+<span class="hdr">  DAO HACK — Reentrancy Attack Simulation</span>
+<span class="hdr">============================================================</span>
+
+[1] Deploying vulnerable SimpleDAO...
+  SimpleDAO deployed at <span class="info">0x5FbDB2315678afecb367f032d93F642f64180aa3</span>
+
+[2] Victim deposits 10 ETH...
+  DAO balance: <span class="info">10.0000 ETH</span>
+
+[3] Deploying DAOAttacker (attacker's contract)...
+  DAOAttacker deployed at <span class="info">0x663F3ad617193148711d28f5334eE4Ed07016602</span>
+
+[4] Attacker deposits 1 ETH and launches reentrancy attack...
+  Attack flow:
+    attack() → dao.deposit(1 ETH) → dao.withdraw()
+    → DAO sends ETH → receive() re-enters dao.withdraw()
+    → repeats until DAO balance == 0
+
+<span class="hdr">============================================================</span>
+<span class="hdr">  ATTACK RESULTS</span>
+<span class="hdr">============================================================</span>
+  DAO balance:               <span class="info">0.0000 ETH</span>
+  Attacker contract balance: <span class="info">11.0000 ETH</span>
+  Reentrant calls:           <span class="info">10</span>
+
+<span class="pass">  PASS: DAO balance = 0 ETH after attack</span>
+<span class="pass">  PASS: Attacker holds 11 ETH (10 victim + 1 seed)</span>
+
+<span class="hdr">============================================================</span>
+<span class="hdr">  VULNERABILITY EXPLANATION</span>
+<span class="hdr">============================================================</span>
+  Root cause: 'external interaction before state update'
+    withdraw() sends ETH (external call) BEFORE zeroing balances[msg.sender].
+    This violates the Checks-Effects-Interactions (CEI) pattern.
+
+  Attack steps:
+    1. Attacker deposits 1 ETH  → DAO total: 11 ETH
+    2. Attacker calls withdraw() → DAO sends 1 ETH to attacker
+    3. attacker.receive() fires  → balance[attacker] still = 1 ETH (not yet 0!)
+    4. receive() calls withdraw() again → DAO sends another 1 ETH
+    5. Steps 3-4 repeat until DAO is empty
+    6. Stack unwinds: unchecked balance decrements execute (no revert)
+
+  Fix: zero balances[msg.sender] BEFORE the external call (CEI).
+
+Log saved → logs/dao_attack.log
+</pre></body></html>

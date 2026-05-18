@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<style>
+  body { background:#1e1e1e; margin:0; padding:20px; font-family:'Consolas','Courier New',monospace; font-size:13px; }
+  pre { color:#d4d4d4; white-space:pre-wrap; line-height:1.6; margin:0; }
+  .title { color:#4ec9b0; font-size:15px; font-weight:bold; margin-bottom:8px; }
+  .pass { color:#4ec9b0; }
+  .hdr  { color:#569cd6; }
+  .cmd  { color:#ce9178; }
+  .info { color:#9cdcfe; }
+  .warn { color:#f44747; }
+</style></head><body>
+<div class="title">npm test — 03: Parity Hack #1 · Unauthorized Initialization via delegatecall</div>
+<pre>
+<span class="cmd">> week12-eth-security@1.0.0 simulate:parity1</span>
+<span class="cmd">> hardhat run scripts/03_parity1_attack.js --network hardhat</span>
+
+<span class="hdr">============================================================</span>
+<span class="hdr">  PARITY HACK #1 — Unauthorized Initialization via delegatecall</span>
+<span class="hdr">============================================================</span>
+
+[1] Deploying shared WalletLibraryVulnerable...
+  Library: <span class="info">0x5FbDB2315678afecb367f032d93F642f64180aa3</span>
+
+[2] Deploying 3 proxy WalletVulnerable contracts...
+  Wallet1: <span class="info">0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512</span>
+  Wallet2: <span class="info">0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0</span>
+  Wallet3: <span class="info">0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9</span>
+
+[3] Funding each wallet with 5 ETH...
+  Wallet1: <span class="info">5.0000 ETH</span>  |  Wallet2: <span class="info">5.0000 ETH</span>  |  Wallet3: <span class="info">5.0000 ETH</span>
+
+[4] Wallet1: legitimate owner initializes via fallback → initWallet...
+  Wallet1 owner: <span class="info">0x70997970C51812dc3A010C7d01b50e0d17dc79C8</span>
+<span class="pass">  PASS: Wallet1 owner = owner1</span>
+  Wallet1 balance after 1 ETH withdraw: <span class="info">4.0000 ETH</span>
+
+[5] Wallet2 and Wallet3 are uninitialized (owner = address(0))...
+  Wallet2 owner: <span class="warn">0x0000000000000000000000000000000000000000</span> ← zero address
+  Wallet3 owner: <span class="warn">0x0000000000000000000000000000000000000000</span> ← zero address
+
+[6] ATTACK: attacker calls initWallet on Wallet2 and Wallet3 via fallback...
+  (fallback → delegatecall → library.initWallet runs in proxy storage context)
+  Wallet2 owner: <span class="warn">0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65</span>
+  Wallet3 owner: <span class="warn">0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65</span>
+<span class="pass">  PASS: Attacker is now owner of Wallet2</span>
+<span class="pass">  PASS: Attacker is now owner of Wallet3</span>
+
+[7] Attacker drains Wallet2 and Wallet3...
+  Wallet2 balance: <span class="warn">0.0000 ETH</span>
+  Wallet3 balance: <span class="warn">0.0000 ETH</span>
+<span class="pass">  PASS: Wallet2 drained to 0 ETH</span>
+<span class="pass">  PASS: Wallet3 drained to 0 ETH</span>
+
+<span class="hdr">============================================================</span>
+<span class="hdr">  VULNERABILITY EXPLANATION</span>
+<span class="hdr">============================================================</span>
+  delegatecall mechanics:
+    library code runs in PROXY's storage context.
+    library slot 0 = 'owner' → maps to proxy slot 0 = 'owner'.
+    initWallet(_owner) writes storage[0] = _owner.
+    Via delegatecall: proxy.owner is overwritten.
+
+  Attack precondition: proxy.owner == address(0) (never initialized).
+  Attacker calls initWallet(attacker) via fallback → hijacks ownership.
+
+<span class="hdr">============================================================</span>
+<span class="hdr">  WALLETFIXED — Protection Verification</span>
+<span class="hdr">============================================================</span>
+  WalletFixed deployed. Owner: <span class="info">0x70997970C51812dc3A010C7d01b50e0d17dc79C8</span>
+  Re-init attempt reverted: <span class="info">true</span>
+<span class="pass">  PASS: WalletFixed: re-initialization rejected (already initialized)</span>
+  Non-owner execute reverted: <span class="info">true</span>
+<span class="pass">  PASS: WalletFixed: non-owner execute rejected (owner only)</span>
+  WalletFixed balance: <span class="info">5.0000 ETH</span> (funds safe)
+
+<span class="hdr">============================================================</span>
+<span class="hdr">  PARITY #1 SIMULATION COMPLETE</span>
+<span class="hdr">============================================================</span>
+
+Log saved → logs/parity1_attack.log
+</pre></body></html>

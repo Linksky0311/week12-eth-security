@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<style>
+  body { background:#1e1e1e; margin:0; padding:20px; font-family:'Consolas','Courier New',monospace; font-size:13px; }
+  pre { color:#d4d4d4; white-space:pre-wrap; line-height:1.6; margin:0; }
+  .title { color:#4ec9b0; font-size:15px; font-weight:bold; margin-bottom:8px; }
+  .pass { color:#4ec9b0; }
+  .hdr  { color:#569cd6; }
+  .cmd  { color:#ce9178; }
+  .info { color:#9cdcfe; }
+  .warn { color:#f44747; }
+  .freeze { color:#dcdcaa; }
+</style></head><body>
+<div class="title">npm test — 04: Parity Hack #2 · Library Self-Destruct → Frozen Funds</div>
+<pre>
+<span class="cmd">> week12-eth-security@1.0.0 simulate:parity2</span>
+<span class="cmd">> hardhat run scripts/04_parity2_freeze.js --network hardhat</span>
+
+<span class="hdr">============================================================</span>
+<span class="hdr">  PARITY HACK #2 — Library Self-Destruct → Frozen Funds</span>
+<span class="hdr">============================================================</span>
+
+[1] Deploying SharedWalletLibraryVulnerable...
+  Library: <span class="info">0x5FbDB2315678afecb367f032d93F642f64180aa3</span>
+  Library code size (before): <span class="info">801 bytes</span>
+<span class="pass">  PASS: Library has code before attack</span>
+
+[2] Deploying 3 SharedWallet proxies (all pointing to same library)...
+  Wallet1/2/3: each initialized with proper owner, funded with <span class="info">5.0000 ETH</span>
+
+[5] ATTACK step 1: attacker calls initWallet() DIRECTLY on the library...
+  Library's own owner: <span class="warn">0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65</span>
+<span class="pass">  PASS: Attacker now owns the library contract directly</span>
+
+[6] ATTACK step 2: attacker calls killLibrary() → selfdestruct...
+  Library code size before kill: <span class="info">801 bytes</span>
+  Library code size after kill:  <span class="warn">0 bytes</span>
+<span class="pass">  PASS: Library code = 0x (selfdestruct confirmed)</span>
+
+[7] Wallet balances after library destruction...
+  Wallet1: <span class="freeze">5.0000 ETH</span>  ← FROZEN (ETH not stolen, only inaccessible)
+<span class="pass">  PASS: Wallet1: 5 ETH still present (frozen, not stolen)</span>
+  Wallet2: <span class="freeze">5.0000 ETH</span>  ← FROZEN (ETH not stolen, only inaccessible)
+<span class="pass">  PASS: Wallet2: 5 ETH still present (frozen, not stolen)</span>
+  Wallet3: <span class="freeze">5.0000 ETH</span>  ← FROZEN (ETH not stolen, only inaccessible)
+<span class="pass">  PASS: Wallet3: 5 ETH still present (frozen, not stolen)</span>
+
+[8] Owners try to execute() — should fail...
+  Execute reverted: <span class="warn">true</span>
+<span class="pass">  PASS: Execute fails after library self-destruct (Library code not found)</span>
+
+<span class="hdr">============================================================</span>
+<span class="hdr">  IMPORTANT: THIS IS NOT A THEFT</span>
+<span class="hdr">============================================================</span>
+  The attacker did NOT steal wallet ETH.
+  The shared library code was destroyed via selfdestruct.
+  Wallet funds are FROZEN — permanently inaccessible.
+
+<span class="hdr">============================================================</span>
+<span class="hdr">  SHAREDWALLETLIBRARYFIXED — Protection Verification</span>
+<span class="hdr">============================================================</span>
+  Fixed wallet owner (set via delegatecall): <span class="info">0x70997970C51812dc3A010C7d01b50e0d17dc79C8</span>
+<span class="pass">  PASS: Fixed wallet: legitimate initialization via delegatecall works</span>
+  Direct library initWallet reverted: <span class="info">true</span>
+<span class="pass">  PASS: Fixed library: direct initialization rejected</span>
+  Fixed library code size: <span class="info">901 bytes</span>
+<span class="pass">  PASS: Fixed library: still has code (no selfdestruct path)</span>
+  Fixed wallet balance after withdraw: <span class="info">2.0000 ETH</span>
+<span class="pass">  PASS: Fixed wallet: owner can execute normally</span>
+
+<span class="hdr">============================================================</span>
+<span class="hdr">  PARITY #2 SIMULATION COMPLETE</span>
+<span class="hdr">============================================================</span>
+
+Log saved → logs/parity2_freeze.log
+</pre></body></html>
